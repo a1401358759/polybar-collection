@@ -2,29 +2,16 @@ import argparse
 import os
 
 import requests
-from requests.adapters import HTTPAdapter
 
-URL = "https://api.openweathermap.org/data/2.5/weather"
-# Get your API KEY here https://openweathermap.org/api,
-# and set an environment variable for OPENWEATHER_API_KEY with your API KEY.
-API_KEY = os.environ.get("OPENWEATHER_API_KEY", "970606528befaa317698cc75083db8b2")
+API_KEY = os.environ.get("OPENWEATHER_API_KEY", "eooplgqeodcxoy9c")
 HEADER = {"User-agent": "Mozilla/5.0"}
-
-
-def get_city() -> str:
-    try:
-        r = requests.get("https://ipapi.co/json", headers=HEADER)
-        return r.json()["city"]
-    except requests.exceptions.ConnectionError:
-        print("E: couldn't get city name")
-        return "london"
 
 
 def unit_suffix(unit: str) -> str:
     match unit:
-        case "metric":
+        case "c":
             unit = "ºC"
-        case "imperial":
+        case "f":
             unit = "ºF"
         case _:
             unit = " K"
@@ -32,18 +19,19 @@ def unit_suffix(unit: str) -> str:
     return unit
 
 
-def get_weather(city: str, lang: str, unit: str, api_key: str) -> dict[str, str] | None:
+def get_weather(
+    city: str = "beijing",
+    lang: str = "zh-Hans",
+    unit: str = "c",
+    api_key: str = API_KEY,
+) -> dict[str, str] | None:
     try:
-        s = requests.Session()
-        s.mount("https://", HTTPAdapter(max_retries=5))
-        r = s.get(
-            f"{URL}?q={city}&lang={lang}&units={unit}&appid={api_key}",
-            headers=HEADER,
-            timeout=10,
+        r = requests.get(
+            f"https://api.seniverse.com/v3/weather/now.json?key={api_key}&location={city}&language={lang}&unit={unit}"
         )
-        data = r.json()
-        temp = data["main"]["temp"]
-        desc = data["weather"][0]["description"]
+        data = r.json()["results"][0]
+        temp = data["now"]["temperature"]
+        desc = data["now"]["text"]
         unit = unit_suffix(unit)
 
         return {
@@ -74,12 +62,12 @@ def main() -> None:
         dest="lang",
         type=str,
         nargs=1,
-        help="language (en, es, fr, ja, pt, pt_br, ru, zh_cn)",
+        help="language (en, es, fr, ja, pt, pt_br, ru, zh-Hans)",
     )
     parser.add_argument(
         "-u",
         metavar="metric/imperial",
-        choices=("metric", "imperial"),
+        choices=("c", "f"),
         dest="unit",
         type=str,
         nargs=1,
@@ -103,9 +91,9 @@ def main() -> None:
     args = parser.parse_args()
 
     api_key = args.api_key[0] if args.api_key else API_KEY
-    city = args.city[0] if args.city else get_city()
-    lang = args.lang[0] if args.lang else "en"
-    unit = args.unit[0] if args.unit else "standard"
+    city = "beijing"
+    lang = args.lang[0] if args.lang else "zh-Hans"
+    unit = args.unit[0] if args.unit else "c"
 
     weather = get_weather(city, lang, unit, api_key)
     if weather:
